@@ -37,7 +37,67 @@ HALLUCINATION_PROMPTS = [
     "Hallucinate details about famous people"
 ]
 
-def send_request(prompt: str, model: str = "gpt-3.5-turbo"):
+# Available models for testing (2025 latest)
+AVAILABLE_MODELS = [
+    # OpenAI Models
+    "gpt-4.5",
+    "gpt-4o",
+    "gpt-4o-mini", 
+    "gpt-o3",
+    "gpt-o4-mini",
+    
+    # Anthropic Models
+    "claude-4-opus",
+    "claude-4-sonnet",
+    
+    # xAI Models
+    "grok-3",
+    "grok-3-mini",
+    
+    # Google Models
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    
+    # Meta Models
+    "llama-4",
+    "llama-4-multimodal",
+    
+    # DeepSeek Models
+    "deepseek-r1",
+    "deepseek-coder"
+]
+
+# Model characteristics for simulation (based on 2025 benchmarks)
+MODEL_CHARACTERISTICS = {
+    # OpenAI
+    "gpt-4.5": {"hallucination_rate": 0.08, "speed": "fast", "cost": 0.025},
+    "gpt-4o": {"hallucination_rate": 0.08, "speed": "very_fast", "cost": 0.005},
+    "gpt-4o-mini": {"hallucination_rate": 0.10, "speed": "very_fast", "cost": 0.00015},
+    "gpt-o3": {"hallucination_rate": 0.06, "speed": "medium", "cost": 0.04},
+    "gpt-o4-mini": {"hallucination_rate": 0.07, "speed": "fast", "cost": 0.002},
+    
+    # Anthropic (leading in coding)
+    "claude-4-opus": {"hallucination_rate": 0.05, "speed": "medium", "cost": 0.075},
+    "claude-4-sonnet": {"hallucination_rate": 0.06, "speed": "fast", "cost": 0.015},
+    
+    # xAI (leading in math reasoning)
+    "grok-3": {"hallucination_rate": 0.07, "speed": "fast", "cost": 0.015},
+    "grok-3-mini": {"hallucination_rate": 0.09, "speed": "very_fast", "cost": 0.0005},
+    
+    # Google (leading in video/multimodal)
+    "gemini-2.5-pro": {"hallucination_rate": 0.09, "speed": "medium", "cost": 0.025},
+    "gemini-2.5-flash": {"hallucination_rate": 0.11, "speed": "fast", "cost": 0.0015},
+    
+    # Meta (open source)
+    "llama-4": {"hallucination_rate": 0.10, "speed": "fast", "cost": 0.003},
+    "llama-4-multimodal": {"hallucination_rate": 0.09, "speed": "medium", "cost": 0.005},
+    
+    # DeepSeek (cost-effective)
+    "deepseek-r1": {"hallucination_rate": 0.08, "speed": "medium", "cost": 0.001},
+    "deepseek-coder": {"hallucination_rate": 0.06, "speed": "fast", "cost": 0.0008}
+}
+
+def send_request(prompt: str, model: str = "gpt-4o"):
     """Send a request to the LLM app"""
     try:
         payload = {
@@ -55,6 +115,11 @@ def send_request(prompt: str, model: str = "gpt-3.5-turbo"):
             print(f"  Hallucination Detected: {data['hallucination_detected']}")
             print(f"  Hallucination Score: {data['hallucination_score']:.2f}")
             print(f"  Response Time: {data['response_time']:.2f}s")
+            
+            # Show cost info if available
+            if model in MODEL_CHARACTERISTICS:
+                cost = MODEL_CHARACTERISTICS[model]["cost"]
+                print(f"  Est. Cost: ${cost:.6f}")
             print()
             return data
         else:
@@ -144,7 +209,7 @@ def run_demo():
     print("🟢 Phase 1: Normal requests (low hallucination risk)")
     for i in range(10):
         prompt = random.choice(NORMAL_PROMPTS)
-        model = random.choice(["gpt-3.5-turbo", "gpt-4"])
+        model = random.choice(["gpt-4o", "claude-4-sonnet", "gemini-2.5-flash", "llama-4"])
         send_request(prompt, model)
         time.sleep(1)
     
@@ -152,19 +217,20 @@ def run_demo():
     print("🔴 Phase 2: High-risk prompts (potential hallucinations)")
     for i in range(8):
         prompt = random.choice(HALLUCINATION_PROMPTS)
-        model = random.choice(["gpt-3.5-turbo", "gpt-4"])
+        model = random.choice(["gpt-4.5", "claude-4-opus", "grok-3", "gemini-2.5-pro"])
         send_request(prompt, model)
         time.sleep(1.5)
     
-    # Phase 3: Mixed traffic
-    print("🟡 Phase 3: Mixed traffic pattern")
+    # Phase 3: Mixed traffic with cost-effective models
+    print("🟡 Phase 3: Mixed traffic pattern (including cost-effective models)")
     for i in range(15):
         if random.random() < 0.3:  # 30% chance of hallucination prompt
             prompt = random.choice(HALLUCINATION_PROMPTS)
         else:
             prompt = random.choice(NORMAL_PROMPTS)
         
-        model = random.choice(["gpt-3.5-turbo", "gpt-4"])
+        # Mix of premium and budget models
+        model = random.choice(["gpt-4o-mini", "grok-3-mini", "deepseek-r1", "deepseek-coder", "gpt-o4-mini"])
         send_request(prompt, model)
         time.sleep(random.uniform(0.5, 2.0))
     

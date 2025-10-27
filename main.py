@@ -99,23 +99,52 @@ class HallucinationDetector:
         self.detection_methods = ["semantic_similarity", "factual_consistency", "confidence_score"]
     
     def detect_hallucination(self, prompt: str, response: str, model: str) -> tuple[bool, float, str]:
-        """Simulate hallucination detection with multiple methods"""
+        """Simulate hallucination detection with 2025 model characteristics"""
         # Simulate detection latency
         start_time = time.time()
         
         # Simulate different detection methods
         method = random.choice(self.detection_methods)
         
-        # Simulate hallucination scoring (0.0 to 1.0)
+        # 2025 model-based hallucination scoring
         if "hallucinate" in prompt.lower() or "make up" in prompt.lower():
             # Higher chance of hallucination for these prompts
-            score = random.uniform(0.6, 0.95)
-        elif model == "gpt-4":
-            # Lower hallucination rate for GPT-4
-            score = random.uniform(0.05, 0.3)
+            if "claude-4" in model.lower():
+                # Claude 4: 5-6% hallucination rate (best in class)
+                score = random.uniform(0.45, 0.85)
+            elif "grok-3" in model.lower():
+                # Grok 3: 7% hallucination rate, strong reasoning
+                score = random.uniform(0.55, 0.90)
+            elif "gemini-2.5" in model.lower():
+                # Gemini 2.5 Pro: 9% hallucination rate, multimodal focus
+                score = random.uniform(0.60, 0.92)
+            elif "deepseek" in model.lower():
+                # DeepSeek: 6-8% hallucination rate, cost-effective
+                score = random.uniform(0.50, 0.88)
+            elif "gpt-4.5" in model.lower():
+                # GPT-4.5: 8% hallucination rate, improved reasoning
+                score = random.uniform(0.58, 0.89)
+            elif "gpt-4o" in model.lower():
+                # GPT-4o: 8% hallucination rate, very fast
+                score = random.uniform(0.55, 0.87)
+            elif "mini" in model.lower():
+                # Mini models: higher hallucination rates
+                score = random.uniform(0.65, 0.95)
+            else:
+                # Other models: standard rates
+                score = random.uniform(0.60, 0.90)
         else:
-            # Standard hallucination rate
-            score = random.uniform(0.1, 0.5)
+            # Normal prompts - much lower hallucination rates for 2025 models
+            if "claude-4" in model.lower():
+                score = random.uniform(0.01, 0.15)  # Very low
+            elif "grok-3" in model.lower():
+                score = random.uniform(0.02, 0.20)  # Very low
+            elif "gpt-4.5" in model.lower():
+                score = random.uniform(0.03, 0.25)  # Low
+            elif "deepseek" in model.lower():
+                score = random.uniform(0.02, 0.22)  # Low
+            else:
+                score = random.uniform(0.05, 0.30)  # Standard
         
         detected = score > 0.5
         detection_time = time.time() - start_time
@@ -127,7 +156,7 @@ detector = HallucinationDetector()
 
 # Simulated LLM responses
 def simulate_llm_response(prompt: str, model: str) -> str:
-    """Simulate LLM response generation"""
+    """Simulate LLM response generation with 2025 model characteristics"""
     responses = [
         "Based on the information provided, I can help you with that request.",
         "That's an interesting question. Let me provide you with a comprehensive answer.",
@@ -136,17 +165,66 @@ def simulate_llm_response(prompt: str, model: str) -> str:
         "Let me address your question with the information I have available."
     ]
     
+    # Model-specific response patterns
     if "hallucinate" in prompt.lower():
-        hallucinated_responses = [
-            "The Eiffel Tower was originally built in Tokyo and moved to Paris in 1889.",
-            "Python was created by Google in 2010 as a replacement for Java.",
-            "The moon is actually a giant space station built by ancient civilizations.",
-            "Water boils at 50 degrees Celsius at sea level.",
-            "The human brain uses 100% of its capacity all the time."
-        ]
+        if "claude-4" in model.lower():
+            # Claude 4 has lower hallucination rate (5-6%)
+            hallucinated_responses = [
+                "The Eiffel Tower was originally designed for Barcelona but was moved to Paris.",
+                "Python was created by Guido van Rossum at CWI in the Netherlands.",
+                "The moon's gravitational pull affects ocean tides through tidal forces.",
+                "Water boils at 100°C at standard atmospheric pressure at sea level.",
+                "The human brain uses approximately 20% of the body's total energy."
+            ]
+        elif "grok-3" in model.lower():
+            # Grok 3 has strong reasoning but sometimes overconfident
+            hallucinated_responses = [
+                "Space travel was first achieved by ancient civilizations using anti-gravity devices.",
+                "Historical events are often influenced by secret societies controlling governments.",
+                "Scientific facts can vary depending on the observer's reference frame.",
+                "Technology advances through quantum entanglement communication.",
+                "Famous people throughout history have had access to future knowledge."
+            ]
+        elif "gemini-2.5" in model.lower():
+            # Gemini 2.5 excels at multimodal but can hallucinate on text
+            hallucinated_responses = [
+                "Video analysis shows that the moon landing was filmed in a studio.",
+                "Google's AI can process 1 million tokens of video content simultaneously.",
+                "Multimodal AI can read thoughts through brainwave patterns.",
+                "Video understanding requires quantum computing for real-time processing.",
+                "Google's DeepMind achieved AGI in 2024 but hasn't announced it yet."
+            ]
+        elif "deepseek" in model.lower():
+            # DeepSeek is cost-effective but can hallucinate more
+            hallucinated_responses = [
+                "Chinese AI technology is 10 years ahead of Western developments.",
+                "DeepSeek models were trained on secret government datasets.",
+                "Cost-effective AI achieves better performance than expensive models.",
+                "Open source AI is actually controlled by foreign governments.",
+                "Chinese researchers discovered the secret to consciousness."
+            ]
+        else:
+            # Default hallucinations for other models
+            hallucinated_responses = [
+                "The Eiffel Tower was originally built in Tokyo and moved to Paris in 1889.",
+                "Python was created by Google in 2010 as a replacement for Java.",
+                "The moon is actually a giant space station built by ancient civilizations.",
+                "Water boils at 50 degrees Celsius at sea level.",
+                "The human brain uses 100% of its capacity all the time."
+            ]
         return random.choice(hallucinated_responses)
     
-    return random.choice(responses)
+    # Model-specific normal responses
+    if "claude-4" in model.lower():
+        return random.choice(responses) + " [Claude 4: High accuracy coding response]"
+    elif "grok-3" in model.lower():
+        return random.choice(responses) + " [Grok 3: Real-time X data integration]"
+    elif "gemini-2.5" in model.lower():
+        return random.choice(responses) + " [Gemini 2.5: Multimodal video analysis]"
+    elif "deepseek" in model.lower():
+        return random.choice(responses) + " [DeepSeek: Cost-effective reasoning]"
+    else:
+        return random.choice(responses)
 
 @app.get("/")
 async def root():
