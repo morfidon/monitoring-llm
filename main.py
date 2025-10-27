@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
 import uvicorn
 import time
@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 import logging
+import os
 
 # OpenTelemetry imports
 from opentelemetry import metrics, trace
@@ -17,8 +18,19 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram, Gauge
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import JSONResponse
+
+# Try to import OpenAI (optional)
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+    # Initialize OpenAI client if API key is available
+    openai_client = None
+    if os.getenv("OPENAI_API_KEY"):
+        openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        logger.info("OpenAI client initialized")
+except ImportError:
+    OPENAI_AVAILABLE = False
+    openai_client = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -226,9 +238,39 @@ def simulate_llm_response(prompt: str, model: str) -> str:
     else:
         return random.choice(responses)
 
+def call_real_openai(prompt: str, model: str = "gpt-4o-mini") -> str:
+    """Make actual API call to OpenAI"""
+    if not openai_client:
+        return "OpenAI not available - using simulation"
+    
+    try:
+        response = openai_client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"OpenAI API error: {e}")
+        return f"OpenAI API error: {str(e)}"
+
+def calculate_openai_cost(model: str, tokens: int) -> float:
+    """Calculate actual cost based on OpenAI pricing"""
+    pricing = {
+        "gpt-4o": 0.005,
+        "gpt-4o-mini": 0.00015,
+        "gpt-4-turbo": 0.01,
+        "gpt-3.5-turbo": 0.002
+    }
+    cost_per_token = pricing.get(model, 0.01) / 1_000_000
+    return cost_per_token * tokens
+
 @app.get("/")
 async def root():
-    return {"message": "LLM Monitoring Demo Application", "status": "running"}
+    return {"message": "LLM Monitoring Demo Application", "status": "running", "openai_available": OPENAI_AVAILABLE and openai_client is not None}
 
 @app.get("/metrics")
 async def metrics_endpoint():
@@ -253,12 +295,18 @@ async def chat_completion(request: LLMRequest):
         llm_requests_total.add(1, {"model": request.model})
         model_usage.add(1, {"model": request.model})
         
-        # Simulate LLM processing time
-        processing_time = random.uniform(0.5, 3.0)
-        time.sleep(processing_time)
-        
-        # Generate response
-        response_text = simulate_llm_response(request.prompt, request.model)
+        # Generate response (use real OpenAI if available, otherwise simulate)
+        if openai_client and request.model in ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]:
+            # Use real OpenAI API
+            response_text = call_real_openai(request.prompt, request.model)
+            processing_time = time.time() - start_time  # Real API call time
+            is_real_api = True
+        else:
+            # Use simulation
+            processing_time = random.uniform(0.5, 3.0)
+            time.sleep(processing_time)
+            response_text = simulate_llm_response(request.prompt, request.model)
+            is_real_api = False
         
         # Detect hallucination
         hallucination_detected, hallucination_score_value, detection_method = detector.detect_hallucination(
@@ -291,7 +339,7 @@ async def chat_completion(request: LLMRequest):
             timestamp=datetime.utcnow().isoformat()
         )
         
-        logger.info(f"Request processed - Model: {request.model}, Hallucination: {hallucination_detected}, Score: {hallucination_score_value:.2f}")
+        logger.info(f"Request processed - Model: {request.model}, Real API: {is_real_api}, Hallucination: {hallucination_detected}, Score: {hallucination_score_value:.2f}")
         
         return response
 
