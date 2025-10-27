@@ -32,6 +32,13 @@ except ImportError:
     OPENAI_AVAILABLE = False
     openai_client = None
 
+# Import advanced detector
+try:
+    from advanced_detector import AdvancedHallucinationDetector
+    ADVANCED_DETECTOR_AVAILABLE = True
+except ImportError:
+    ADVANCED_DETECTOR_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -70,6 +77,38 @@ hallucination_score = meter.create_histogram(
 detection_latency = meter.create_histogram(
     "detection_latency_seconds",
     description="Time taken to detect hallucination"
+)
+
+# Advanced detection metrics
+llm_judge_score = meter.create_histogram(
+    "llm_judge_score",
+    description="LLM-as-a-Judge hallucination score"
+)
+
+self_consistency_score = meter.create_histogram(
+    "self_consistency_score", 
+    description="Self-consistency hallucination score"
+)
+
+semantic_consistency_score = meter.create_histogram(
+    "semantic_consistency_score",
+    description="Semantic consistency hallucination score"
+)
+
+fact_triplet_score = meter.create_histogram(
+    "fact_triplet_score",
+    description="Fact triplet hallucination score"
+)
+
+token_confidence_score = meter.create_histogram(
+    "token_confidence_score",
+    description="Token confidence hallucination score"
+)
+
+detection_method_latency = meter.create_histogram(
+    "detection_method_latency_seconds",
+    description="Latency per detection method",
+    unit="s"
 )
 
 model_usage = meter.create_counter(
@@ -163,8 +202,9 @@ class HallucinationDetector:
         
         return detected, score, method
 
-# Initialize detector
+# Initialize detectors
 detector = HallucinationDetector()
+advanced_detector = AdvancedHallucinationDetector() if ADVANCED_DETECTOR_AVAILABLE else None
 
 # Simulated LLM responses
 def simulate_llm_response(prompt: str, model: str) -> str:
@@ -308,10 +348,40 @@ async def chat_completion(request: LLMRequest):
             response_text = simulate_llm_response(request.prompt, request.model)
             is_real_api = False
         
-        # Detect hallucination
-        hallucination_detected, hallucination_score_value, detection_method = detector.detect_hallucination(
-            request.prompt, response_text, request.model
-        )
+        # Detect hallucination (use advanced detector if available)
+        if advanced_detector:
+            # Use advanced multi-method detection
+            detection_results = advanced_detector.run_all_detections(request.prompt, response_text)
+            aggregated = advanced_detector.aggregate_results(detection_results)
+            
+            hallucination_detected = aggregated["final_score"] > 0.5
+            hallucination_score_value = aggregated["final_score"]
+            detection_method = "advanced_multi_method"
+            
+            # Record individual method metrics
+            for result in detection_results:
+                if result.method == "llm_judge":
+                    llm_judge_score.record(result.score, {"model": request.model})
+                elif result.method == "self_consistency":
+                    self_consistency_score.record(result.score, {"model": request.model})
+                elif result.method == "semantic_consistency":
+                    semantic_consistency_score.record(result.score, {"model": request.model})
+                elif result.method == "fact_triplet":
+                    fact_triplet_score.record(result.score, {"model": request.model})
+                elif result.method == "token_confidence":
+                    token_confidence_score.record(result.score, {"model": request.model})
+                
+                detection_method_latency.record(result.latency_ms / 1000, {"method": result.method})
+            
+            # Add method scores to response for debugging
+            span.set_attribute("detection_methods", str(aggregated["method_scores"]))
+            span.set_attribute("detection_confidence", aggregated["confidence"])
+            
+        else:
+            # Use simple detector
+            hallucination_detected, hallucination_score_value, detection_method = detector.detect_hallucination(
+                request.prompt, response_text, request.model
+            )
         
         total_time = time.time() - start_time
         
