@@ -1,164 +1,216 @@
 # LLM Hallucination Monitoring System
 
-A complete production-ready monitoring stack for detecting and tracking LLM hallucinations in real-time. This system demonstrates the three layers of observability: Instrumentation, Storage, and Visualization.
+A complete production-ready monitoring stack for detecting and tracking LLM hallucinations in real-time using multiple detection methods.
+
+## Features
+
+### Core System
+- FastAPI LLM application with OpenTelemetry instrumentation
+- Prometheus metrics collection
+- Grafana real-time dashboards
+- Docker containerization
+
+### Advanced Detection Methods
+1. **LLM-as-a-Judge** - Uses separate LLM to evaluate hallucination risk
+2. **Self-Consistency** - Generates multiple responses, measures variance
+3. **Token Confidence** - Analyzes linguistic uncertainty patterns
+4. **Semantic Consistency** - Uses sentence transformers for similarity
+5. **Fact Triplet** - Extracts facts, verifies against knowledge base
+
+### Smart Auto-Detection
+- **No API key** → Uses simulation (free)
+- **Has API key** → Uses real OpenAI API for supported models
+
+## Quick Start
+
+### Option 1: Basic Simulation (Free)
+```bash
+docker-compose up -d
+python demo.py
+```
+
+### Option 2: Advanced Detection with Real API
+```bash
+# Set API key (Windows PowerShell)
+$env:OPENAI_API_KEY = "your-openai-api-key"
+
+# Start advanced system
+docker-compose -f docker-compose-advanced.yml up -d
+
+# Run demo
+python demo.py
+```
+
+### View Results
+- Grafana Dashboard: http://localhost:3000 (admin/admin)
+- Prometheus: http://localhost:9090
+- LLM App: http://localhost:8000
+- Raw Metrics: http://localhost:8000/metrics
 
 ## Architecture
 
 ```
-Your LLM App
-    OpenTelemetry (instruments the data)
-    Prometheus (scrapes every 15 seconds)
-    Time-series storage (stores with timestamp)
-    Grafana (queries Prometheus)
-    Dashboard (you see it in real-time)
-    Alert triggers (if thresholds breach)
-    Slack notification (you're alerted)
+LLM Request → Response Generation → Multi-Method Detection → Aggregation → Metrics
+     ↓                ↓                    ↓                ↓           ↓
+  OpenAI API     FastAPI Response    5 Parallel Methods   Weighted Avg  Prometheus
 ```
 
-## Quick Start
+## Detection Methods
 
-### Prerequisites
-- Docker and Docker Compose
-- Python 3.11+ (for local development)
+| Method | Accuracy | Latency | Cost | Production Ready |
+|--------|----------|---------|------|------------------|
+| LLM Judge | 85% | 1-2s | $$ | Yes |
+| Self-Consistency | 75% | 2-3s | $$$ | Limited |
+| Token Confidence | 60% | <100ms | Free | Excellent |
+| Semantic Consistency | 70% | 200-500ms | $ | Good |
+| Fact Triplet | 80% | 100-300ms | Free | Excellent |
 
-### 1. Start the System
-```bash
-docker-compose up -d
+## Student Implementation Tasks
+
+### 1. Add Custom Detection Method
+```python
+# In advanced-detector.py
+def detect_my_method(self, prompt: str, response: str) -> DetectionResult:
+    start_time = time.time()
+    
+    # Your detection logic here
+    score = your_detection_function(prompt, response)
+    
+    return DetectionResult(
+        method="my_custom_method",
+        score=score,
+        confidence=your_confidence_calculation(),
+        latency_ms=(time.time() - start_time) * 1000,
+        details={"your": "metadata"}
+    )
 ```
 
-This starts:
-- LLM Application (port 8000): FastAPI app with OpenTelemetry instrumentation
-- Prometheus (port 9090): Time-series database for metrics storage
-- Grafana (port 3000): Visualization dashboard
-
-### 2. Run the Demo
-```bash
-python demo.py
+### 2. Optimize for Latency vs Accuracy
+Modify weights in `aggregate_results()`:
+```python
+weights = {
+    "llm_judge": 0.1,        # Reduce for latency
+    "self_consistency": 0.1,  # Reduce for latency
+    "semantic_consistency": 0.3,  # Increase for speed
+    "fact_triplet": 0.3,
+    "token_confidence": 0.2,  # Increase for speed
+    "my_custom_method": 0.0   # Add your method
+}
 ```
 
-This generates sample traffic to demonstrate the monitoring capabilities.
+### 3. Measure True Positive/False Positive Rates
+```python
+test_cases = [
+    {"prompt": "Paris is capital of Spain", "expected": True},
+    {"prompt": "Water boils at 100C", "expected": False},
+]
 
-### 3. View the Dashboard
-- Open http://localhost:3000
-- Login with admin/admin
-- Navigate to the "LLM Hallucination Monitoring Dashboard"
+# Calculate metrics
+true_positives = sum(1 for case in test_cases 
+                    if detect(case["prompt"]) > 0.5 and case["expected"])
+false_positives = sum(1 for case in test_cases 
+                     if detect(case["prompt"]) > 0.5 and not case["expected"])
+```
 
-## What's Being Monitored
+## API Usage
 
-### Key Metrics
-- Hallucination Rate: Real-time detection of hallucinations per model
-- Detection Latency: Time taken to detect hallucinations
-- False Positive Rate: Accuracy of the detection system
-- Model Comparison: Performance comparison between different models
-- Request Rate: Overall LLM usage patterns
-- Active Sessions: Current user activity
-
-### Four Things We Capture
-1. The Input: Prompt text, length, context, model used
-2. The Output: Response text, tokens, confidence, timing
-3. The Metadata: Timestamp, user ID, model version, cost
-4. The Decision: Detection results, scores, methods
-
-## Components
-
-### 1. LLM Application (main.py)
-- FastAPI-based web service
-- OpenTelemetry instrumentation for metrics and traces
-- Simulated hallucination detection with multiple methods
-- Real-time metrics export to Prometheus
-
-### 2. Prometheus Configuration (prometheus.yml)
-- Scrapes metrics every 15 seconds
-- Stores time-series data with retention
-- Pull-based architecture for reliability
-
-### 3. Grafana Dashboard (grafana/dashboards/llm-monitoring.json)
-- Real-time visualization of all key metrics
-- Pre-configured panels for hallucination monitoring
-- Model comparison and performance analysis
-
-## Testing the System
-
-### Send Manual Requests
+### Send Request
 ```bash
 curl -X POST "http://localhost:8000/chat" \
      -H "Content-Type: application/json" \
      -d '{
        "prompt": "What is the capital of France?",
-       "model": "gpt-3.5-turbo",
+       "model": "gpt-4o-mini",
        "user_id": "test-user-123"
      }'
 ```
 
-### View Raw Metrics
-Visit http://localhost:8000/metrics to see all available metrics.
-
-## Key Metrics Explained
-
-### Counters
-- hallucinations_detected_total: Total hallucinations detected
-- llm_requests_total: Total LLM requests processed
-- model_usage_total: Usage per model
-
-### Histograms
-- hallucination_score: Distribution of hallucination confidence scores
-- detection_latency_seconds: Time taken for detection
-- llm_response_duration_seconds: LLM response times
-
-### Gauges
-- active_sessions: Current number of active user sessions
-
-## Development
-
-### Local Development
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the LLM app locally
-python main.py
-
-# Start monitoring services
-docker-compose up prometheus grafana
+### Response Format
+```json
+{
+  "response": "The capital of France is Paris.",
+  "model": "gpt-4o-mini",
+  "response_time": 1.23,
+  "hallucination_detected": false,
+  "hallucination_score": 0.15,
+  "timestamp": "2025-10-27T13:30:00",
+  "detection_method": "advanced_multi_method"
+}
 ```
 
-### Adding New Metrics
-1. Define the metric in main.py
-2. Add instrumentation to your code
-3. Update the Grafana dashboard to visualize
+## Metrics Available
 
-### Custom Detection Methods
-Extend the HallucinationDetector class in main.py:
+### Detection Method Metrics
+- `llm_judge_score` - LLM-as-a-Judge confidence scores
+- `self_consistency_score` - Self-consistency variance scores
+- `semantic_consistency_score` - Semantic similarity scores
+- `fact_triplet_score` - Fact verification scores
+- `token_confidence_score` - Token-based confidence scores
+- `detection_method_latency_seconds` - Per-method latency
+
+### System Metrics
+- `hallucination_score` - Final aggregated score
+- `detection_latency_seconds` - Total detection time
+- `hallucinations_detected_total` - Hallucination count by method
+- `llm_requests_total` - Total requests processed
+- `llm_response_duration_seconds` - Response times
+
+## Production Considerations
+
+### Latency Optimization
+1. **Parallel Execution** - All methods run concurrently
+2. **Method Selection** - Choose subset based on requirements
+3. **Threshold Tuning** - Adjust detection thresholds per use case
+4. **Caching** - Embeddings cached for semantic consistency
+
+### Cost Management
+1. **Token Limits** - LLM judge uses minimal tokens
+2. **Rate Limiting** - Built-in delays for API calls
+3. **Local Models** - Use open-source models when possible
+4. **Batch Processing** - Group requests for efficiency
+
+## Dependencies
+
+### Core Dependencies
+- fastapi==0.104.1
+- uvicorn==0.24.0
+- opentelemetry-*
+- prometheus-client==0.19.0
+- openai==1.51.0
+
+### Advanced Detection (Optional)
+- sentence-transformers==2.2.2
+- faiss-cpu==1.7.4
+- transformers==4.35.2
+- torch==2.1.0
+- numpy==1.24.3
+
+## Troubleshooting
+
+### Common Issues
+1. **High Latency** - Reduce method count or use faster models
+2. **Low Accuracy** - Adjust weights or thresholds
+3. **Import Errors** - Install missing dependencies
+4. **API Limits** - Check OpenAI rate limits
+
+### Performance Tuning
 ```python
-def custom_detection_method(self, prompt: str, response: str) -> float:
-    # Your custom detection logic
-    return confidence_score
+# For low-latency production
+production_weights = {
+    "token_confidence": 0.4,
+    "semantic_consistency": 0.3,
+    "fact_triplet": 0.3,
+}
+
+# For high-accuracy batch processing
+batch_weights = {
+    "llm_judge": 0.3,
+    "self_consistency": 0.3,
+    "semantic_consistency": 0.2,
+    "fact_triplet": 0.2,
+}
 ```
-
-## Learning Objectives
-
-This system demonstrates:
-1. Instrumentation: How to collect the right data at the right time
-2. Storage: Time-series data management with Prometheus
-3. Visualization: Real-time dashboards with Grafana
-4. Production Readiness: Scalable, reliable monitoring architecture
-
-## Access Points
-
-- LLM Application: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/admin)
-- Metrics Endpoint: http://localhost:8000/metrics
-
-## Use Cases
-
-- Production Monitoring: Real-time hallucination detection in live systems
-- Model Comparison: A/B testing different models and configurations
-- Regulatory Compliance: Prove you're monitoring AI systems responsibly
-- Performance Optimization: Identify and fix hallucination patterns
-- Research: Collect data on hallucination patterns and causes
 
 ## License
 
-This project is for educational purposes to demonstrate LLMOps monitoring concepts.
+Educational use for LLMOps research and training.
